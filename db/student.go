@@ -29,9 +29,8 @@ func (sr *StudentRepository) List() ([]Student, error) {
 	sr.mu.RLock()
 	defer sr.mu.RUnlock()
 	students := make([]Student, len(sr.m))
-	i := 0
-	for _, student := range sr.m {
-		students[i] = student
+	for id, student := range sr.m {
+		students[id-1] = student
 	}
 	return students, nil
 }
@@ -52,10 +51,10 @@ func (sr *StudentRepository) Create(student Student) (int, error) {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
 
-	id := len(sr.m) + 1
-	sr.m[id] = student
+	student.Id = len(sr.m) + 1
+	sr.m[student.Id] = student
 
-	return id, nil
+	return student.Id, nil
 }
 
 func (sr *StudentRepository) Update(id int, student Student) error {

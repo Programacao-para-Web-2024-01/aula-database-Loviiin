@@ -2,8 +2,10 @@ package main
 
 import (
 	"aula-database/db"
+	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 func main() {
@@ -17,7 +19,78 @@ func createServer() error {
 
 	mux := http.NewServeMux()
 
-	// create routes
+	mux.HandleFunc(
+		"/students",
+		func(w http.ResponseWriter, req *http.Request) {
+			switch req.Method {
+			case "GET":
+				students, err := studentRepository.List()
+				if err != nil {
+					http.Error(w, err.Error(), 500)
+					return
+				}
+
+				err = json.NewEncoder(w).Encode(students)
+				if err != nil {
+					http.Error(w, err.Error(), 500)
+					return
+				}
+
+				w.WriteHeader(200)
+			case "POST":
+				var student db.Student
+				err := json.NewDecoder(req.Body).Decode(&student)
+				if err != nil {
+					http.Error(w, err.Error(), 400)
+					return
+				}
+
+				id, err := studentRepository.Create(student)
+				if err != nil {
+					http.Error(w, err.Error(), 500)
+					return
+				}
+
+				student.Id = id
+				json.NewEncoder(w).Encode(student)
+				if err != nil {
+					http.Error(w, err.Error(), 500)
+					return
+				}
+			//
+			default:
+				http.Error(w, "method not supported", 405)
+				return
+			}
+
+		})
+
+	mux.HandleFunc(
+		"/students/{id}",
+		func(w http.ResponseWriter, req *http.Request) {
+			idRaw := req.PathValue("id")
+
+			id, err := strconv.Atoi(idRaw)
+			if err != nil {
+				http.Error(w, err.Error(), 400)
+				return
+			}
+
+			switch req.Method {
+			
+			}
+			student, err := studentRepository.Get(id)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			err = json.NewEncoder(w).Encode(student)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+
+		})
 
 	return http.ListenAndServe("localhost:8080", mux)
 }
