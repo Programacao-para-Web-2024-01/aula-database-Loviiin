@@ -86,8 +86,22 @@ func createServer() error {
 					return
 				}
 
-				updateStudent, err := studentRepository.Get()
+				err = studentRepository.Update(id, student)
+				if err != nil {
+					http.Error(w, err.Error(), 500)
+					return
+				}
 
+				updatedstudent, err := studentRepository.Get(id)
+				if err != nil {
+					http.Error(w, err.Error(), 500)
+					return
+				}
+				err = json.NewEncoder(w).Encode(&updatedstudent)
+				if err != nil {
+					http.Error(w, err.Error(), 500)
+					return
+				}
 			}
 			student, err := studentRepository.Get(id)
 			if err != nil {
