@@ -57,6 +57,7 @@ func createServer() error {
 					http.Error(w, err.Error(), 500)
 					return
 				}
+
 			//
 			default:
 				http.Error(w, "method not supported", 405)
@@ -77,7 +78,16 @@ func createServer() error {
 			}
 
 			switch req.Method {
-			
+			case "PUT":
+				var student db.Student
+				err := json.NewDecoder(req.Body).Decode(&student)
+				if err != nil {
+					http.Error(w, err.Error(), 400)
+					return
+				}
+
+				updateStudent, err := studentRepository.Get()
+
 			}
 			student, err := studentRepository.Get(id)
 			if err != nil {
@@ -85,10 +95,6 @@ func createServer() error {
 				return
 			}
 			err = json.NewEncoder(w).Encode(student)
-			if err != nil {
-				http.Error(w, err.Error(), 500)
-				return
-			}
 
 		})
 
