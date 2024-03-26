@@ -1,7 +1,7 @@
 package db
 
 import (
-	"errors"
+	"database/sql"
 	"sync"
 )
 
@@ -14,63 +14,83 @@ type Student struct {
 }
 
 type StudentRepository struct {
+	db *sql.DB
 	m  map[int]Student
 	mu *sync.RWMutex
 }
 
-func NewStudentRepository() *StudentRepository {
+func NewStudentRepository(db *sql.DB) *StudentRepository {
 	return &StudentRepository{
-		m:  make(map[int]Student),
-		mu: &sync.RWMutex{},
+		db: db,
 	}
 }
 
 func (sr *StudentRepository) List() ([]Student, error) {
-	sr.mu.RLock()
-	defer sr.mu.RUnlock()
-	students := make([]Student, len(sr.m))
-	for id, student := range sr.m {
-		students[id-1] = student
+	rows, err := sr.db.Query(`SELECT id, name, age, email, phone FROM students`)
+	if err != nil {
+		return nil, err
 	}
+
+	var students []Student
+
+	for rows.Next() {
+		var student Student
+		err = rows.Scan(&student.Id, &student.Name, &student.Age, &student.Email, &student.Phone)
+		if err != nil {
+			return nil, err
+		}
+
+		students = append(students, student)
+	}
+
+	rows.Close()
+
 	return students, nil
 }
 
 func (sr *StudentRepository) Get(id int) (*Student, error) {
-	sr.mu.RLock()
-	defer sr.mu.RUnlock()
+	row := sr.db.QueryRow(`
+		SELECT id, name, age, email, phone
+		FROM students
+		WHERE id = ?`, id)
 
-	student, ok := sr.m[id]
-	if !ok {
-		return nil, errors.New("student not found")
+	var student Student
+	err := row.Scan(&student.Id, &student.Name, &student.Age, &student.Email, &student.Phone)
+	if err != nil {
+		return nil, err
 	}
 
 	return &student, nil
 }
 
 func (sr *StudentRepository) Create(student Student) (int, error) {
-	sr.mu.Lock()
-	defer sr.mu.Unlock()
+	result, err := sr.db.Exec(`
+		INSERT INTO students (name, age, email, phone)
+		VALUES (?, ?, ?, ?)`,
+		student.Name, student.Age, student.Email, student.Phone)
+	if err != nil {
+		return 0, err
+	}
 
-	student.Id = len(sr.m) + 1
-	sr.m[student.Id] = student
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
 
-	return student.Id, nil
+	return int(id), nil
 }
 
 func (sr *StudentRepository) Update(id int, student Student) error {
-	sr.mu.Lock()
-	defer sr.mu.Unlock()
-
-	sr.m[id] = student
-
-	return nil
+	_, err := sr.db.Exec(`
+        UPDATE students
+        SET name=?, age=?, email=?, phone=?
+        WHERE id=?`,
+		student.Name, student.Age, student.Email, student.Phone, id)
+	return err
 }
-
 func (sr *StudentRepository) Delete(id int) error {
-	sr.mu.Lock()
-	defer sr.mu.Unlock()
-
-	delete(sr.m, id)
-
-	return nil
+	_, err := sr.db.Exec(`
+	DELETE from students
+	WHERE id=?`, id)
+	return err
 }
